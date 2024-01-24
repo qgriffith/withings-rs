@@ -1,6 +1,7 @@
 use tiny_http::{Server, Response};
 use url::Url;
 use std::collections::HashMap;
+use log::info;
 
 // Set up a server to listen for the OAuth2 redirect and returns the code and state from the redirect URL as a HashMap. 
 //It binds to localhost on port 8888.
@@ -11,7 +12,7 @@ pub mod server {
         
         //Create Tiny-Http server
         let server = Server::http("0.0.0.0:8888").unwrap();
-        println!("Listening on port 8888 for redirect of OAuth2 code.");
+        info!("Listening on port 8888 for redirect of OAuth2 code.");
     
         let mut code = String::new();
         let mut state = String::new();
