@@ -63,10 +63,24 @@ pub fn get_access_code(client_id: String, client_secret: String) -> String {
    
     // Get the access token from the response
     let response_struct = response.unwrap().json::<models::Response>().unwrap();
-    let access_token = response_struct.body.access_token;
+    let access_token = response_struct.body.access_token.clone(); //TODO: fix using clone
     info!("Got Access Token: {}", access_token);
     
-    // Return the access token
+    write_config(response_struct);
     access_token
   
+}
+
+fn write_config(response: models::Response) {
+   let config = models::Config {
+        access_token: response.body.access_token,
+        refresh_token: response.body.refresh_token,
+        userid: response.body.userid,
+    };
+    let path = std::path::Path::new("config.json"); //#TODO: store this in a better place
+    let prefix = path.parent().unwrap();
+    std::fs::create_dir_all(prefix).unwrap();
+    let config_file = std::fs::File::create(path).unwrap();
+    serde_json::to_writer_pretty(config_file, &config).unwrap();
+
 }

@@ -3,3 +3,4 @@
 
 pub mod auth;
 pub use self::auth::Response;
+pub use self::auth::Config;

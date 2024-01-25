@@ -21,3 +21,10 @@ pub struct Body {
     pub token_type: String,
     pub userid: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Config {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub userid: String,
+}
