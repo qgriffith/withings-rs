@@ -12,13 +12,27 @@ You first need to create an Dev account on Withings to get a `client_id` and `cl
 ```rust
 use withings_rs::auth;
 use std::env;
+use simple_logger::SimpleLogger;
 
 fn main () {
-    println!("testing withings-rs");
+    println!("testing withings-rs\n");
+    SimpleLogger::new().init().unwrap();
     let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
     let client_secret = env::var("WITHINGS_CLIENT_SECRET").unwrap();
-    let access_token = auth::get_access_code(client_id, client_secret);
-    println!("Access token: {}", access_token);
+
+    // Check if the config file exists and if not, get the access code
+    // If it does exist, check if the access token is expired and if so, refresh it
+    let config_file = std::fs::File::open("config.json");
+    match config_file {
+        Ok(_) => {
+            println!("Config file exists");
+            auth::refresh_token(client_id, client_secret);
+        },
+        Err(_) => {
+            println!("Config file does not exist");
+            auth::get_access_code(client_id, client_secret);
+        }
+    }
 }
 ```
 
