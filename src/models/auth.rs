@@ -19,12 +19,12 @@ pub struct Body {
     pub refresh_token: String,
     pub scope: String,
     pub token_type: String,
+    #[serde(skip)] //Skip this field because it changes from string to int depending on the response. It isn't needed for the app since we have one user
     pub userid: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub access_token: String,
-    pub refresh_token: String,
-    pub userid: String,
+    pub refresh_token: String    
 }

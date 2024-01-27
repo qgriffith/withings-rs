@@ -10,6 +10,8 @@ use log::{info, warn};
 // TODO: Break this function up into smaller functions
 // TODO: Add error handling and logging
 
+static CONFIG_F: &str = "config.json"; //#TODO: store this in a better place
+
 pub fn get_access_code(client_id: String, client_secret: String) -> String {
 
     
@@ -75,12 +77,46 @@ fn write_config(response: models::Response) {
    let config = models::Config {
         access_token: response.body.access_token,
         refresh_token: response.body.refresh_token,
-        userid: response.body.userid,
     };
-    let path = std::path::Path::new("config.json"); //#TODO: store this in a better place
-    let prefix = path.parent().unwrap();
-    std::fs::create_dir_all(prefix).unwrap();
-    let config_file = std::fs::File::create(path).unwrap();
+    
+    let config_file = std::fs::File::create(&CONFIG_F).unwrap();
     serde_json::to_writer_pretty(config_file, &config).unwrap();
+    load_config();
 
+}
+
+fn load_config() -> models::Config {
+    let config_file = std::fs::File::open(&CONFIG_F).unwrap();
+    let config = serde_json::from_reader(config_file).unwrap();
+    println!("{:?}\n", config);
+    config
+}
+
+pub fn refresh_token(client_id: String, client_secret: String) -> String {
+    let config = load_config();
+    let token_url = "https://wbsapi.withings.net/v2/oauth2".to_string();
+    let grant_type = "refresh_token".to_string();
+    let refresh_token = config.refresh_token;
+    let action = "requesttoken".to_string();
+
+    let mut params = HashMap::new();
+    params.insert("client_id", &client_id);
+    params.insert("client_secret", &client_secret);
+    params.insert("grant_type", &grant_type );
+    params.insert("refresh_token", &refresh_token);
+    params.insert("action", &action);
+
+    // Make the refresh token request
+    let client = reqwest::blocking::Client::new();
+    let response = client.post(token_url)
+    .form(&params)
+    .send();
+   
+    // Get the access token from the response
+     let response_struct = response.unwrap().json::<models::Response>().unwrap();
+     let access_token = response_struct.body.access_token.clone(); //TODO: fix using clone
+     info!("Got Access Token: {}", access_token);
+    
+     //write_config(response_struct);
+     access_token
 }
