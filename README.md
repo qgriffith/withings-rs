@@ -14,7 +14,7 @@ use withings_rs::{auth, measure};
 use std::env;
 use simple_logger::SimpleLogger;
 use std::path::Path;
-
+use withings_rs::models::MeasureType;
 fn main () {
     println!("testing withings-rs\n");
     SimpleLogger::new().init().unwrap();
@@ -23,7 +23,8 @@ fn main () {
     let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
     let config_file = "config.json".to_string();
     let access_token = get_access_token(config_file);
-    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, "1", "1", None, None, None, Some("1706108118")).unwrap();
+    let weight = MeasureType::Weight.to_string();
+    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, "1", &weight, None, None, None, Some("1706108118")).unwrap();
     println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
 }
 
