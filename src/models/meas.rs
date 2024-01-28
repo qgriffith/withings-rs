@@ -1,13 +1,18 @@
-use std::fmt;
+// Docs: https://developer.withings.com/oauth2/#operation/measure-getmeas
+// Example: https://developer.withings.com/oauth2/#section/Measure/Get-measure
+// Response body from the measure-getmeas endpoint
 
+use std::fmt;
 use serde::{Serialize, Deserialize};
 
+// Response from the API is a JSON object that includes the following fields:
 #[derive(Serialize, Deserialize)]
 pub struct ResponseMeas {
    pub status: i64,
    pub body: Body,
 }
 
+// The body of the response is a JSON object that includes the following fields:
 #[derive(Serialize, Deserialize)]
 pub struct Body {
     updatetime: i64,
@@ -41,34 +46,35 @@ pub struct Measure {
     fm: i64,
 }
 
+// MeasureType enum for the measure type field in the measure struct matches the values in the Withings API docs
 pub enum MeasureType {
-    Weight = 1,
-    Height = 4,
-    FatFreeMass = 5,
-    FatRatio = 6,
-    FatMassWeight = 8,
-    DiastolicBloodPressure = 9,
-    SystolicBloodPressure = 10,
-    HeartPulse = 11,
-    Temperature = 12,
-    Sp02 = 54,
-    BodyTemperature = 71,
-    SkinTemperature = 73,
-    MuscleMass = 76,
-    Hydration = 77,
-    BoneMass = 88,
-    PulseWaveVelocity = 91,
-    V02Max = 123,
-    AtrialFibrillation = 130,
-    Qrs = 135,
-    VascularAge = 155,
-    ExtracellularWater = 168,
-    IntracellularWater= 169,
-    VisceralFatMass = 170,
-    FatMass = 174,
-    MuscleMassSegments = 175
+    Weight = 1, // Weight (kg)
+    Height = 4, // Height (meter)
+    FatFreeMass = 5, // Fat Free Mass (kg)
+    FatRatio = 6, // Fat Ratio (%)
+    FatMassWeight = 8, // Fat Mass Weight (kg)
+    DiastolicBloodPressure = 9, // Diastolic Blood Pressure (mmHg)
+    SystolicBloodPressure = 10, // Systolic Blood Pressure (mmHg)
+    HeartPulse = 11, // Heart Pulse (bpm)
+    Temperature = 12, // Temperature (C)
+    Sp02 = 54, // SpO2 (%)
+    BodyTemperature = 71, // Body Temperature (C)
+    SkinTemperature = 73, // Skin Temperature (C)
+    MuscleMass = 76, // Muscle Mass (kg)
+    Hydration = 77, // Hydration (%)
+    BoneMass = 88, // Bone Mass (kg)
+    PulseWaveVelocity = 91, // Pulse Wave Velocity (m/s)
+    V02Max = 123, // VO2 max (mL/min/kg)
+    AtrialFibrillation = 130, // Atrial Fibrillation (0 or 1)
+    Qrs = 135, // QRS Duration (ms)
+    VascularAge = 155, // Vascular Age (years)
+    ExtracellularWater = 168, // Extracellular Water (kg)
+    IntracellularWater= 169, // Intracellular Water (kg)
+    VisceralFatMass = 170, // Visceral Fat Mass (kg)
+    FatMass = 174, // Fat Mass (kg)
+    MuscleMassSegments = 175 // Muscle Mass (kg)
 }
-
+// Implement Display for MeasureType enum so to_string() can be used to convert to the string value expected by the API
 impl fmt::Display for MeasureType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
