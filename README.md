@@ -10,7 +10,7 @@ You first need to create an Dev account on Withings to get a `client_id` and `cl
 ### Example use
 
 ```rust
-use withings_rs::{auth, measure};
+use withings_rs::api::{auth, measure};
 use std::env;
 use simple_logger::SimpleLogger;
 use std::path::Path;
