@@ -10,28 +10,33 @@ You first need to create an Dev account on Withings to get a `client_id` and `cl
 ### Example use
 
 ```rust
-use withings_rs::auth;
+use withings_rs::{auth, measure};
 use std::env;
 use simple_logger::SimpleLogger;
+use std::path::Path;
 
 fn main () {
     println!("testing withings-rs\n");
     SimpleLogger::new().init().unwrap();
+
+
+    let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
+    let config_file = "config.json".to_string();
+    let access_token = get_access_token(config_file);
+    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, "1", "1", None, None, None, Some("1706108118")).unwrap();
+    println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
+}
+
+fn get_access_token(config_file: String) -> Result<String, String>{
     let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
     let client_secret = env::var("WITHINGS_CLIENT_SECRET").unwrap();
-
-    // Check if the config file exists and if not, get the access code
-    // If it does exist, check if the access token is expired and if so, refresh it
-    let config_file = std::fs::File::open("config.json");
-    match config_file {
-        Ok(_) => {
-            println!("Config file exists");
-            auth::refresh_token(client_id, client_secret);
-        },
-        Err(_) => {
-            println!("Config file does not exist");
-            auth::get_access_code(client_id, client_secret);
-        }
+    
+    if Path::new(&config_file).exists() {
+        let access_token = auth::refresh_token(client_id, client_secret);
+        Ok(access_token)
+    } else {
+        let access_token = auth::get_access_code(client_id, client_secret);
+        Ok(access_token)
     }
 }
 ```

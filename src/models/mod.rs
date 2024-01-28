@@ -4,3 +4,8 @@
 pub mod auth;
 pub use self::auth::Response;
 pub use self::auth::Config;
+pub mod meas;
+pub use self::meas::ResponseMeas;
+pub use self::meas::Body;
+pub use self::meas::Measuregrp;
+pub use self::meas::Measure;
