@@ -1,4 +1,3 @@
-pub mod auth;
+pub mod api;
 pub mod models;
 pub mod redirect;
-pub mod measure;
