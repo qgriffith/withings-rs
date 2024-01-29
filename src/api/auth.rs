@@ -3,6 +3,7 @@ use random_string::generate;
 use crate::{models, api};
 use crate::redirect;
 use log::{info, trace, warn};
+use std::env;
 
 // This module handles the auth with the Withings API. It uses the client_id and client_secret
 // provided by Withings to auth with their API and get an access token. The access token is then
@@ -11,8 +12,14 @@ use log::{info, trace, warn};
 // 1 year. The refresh token is used to get a new access token when the current access token expires.
 
 
-// Setup the config file name and the token URL
-static CONFIG_F: &str = "config.json"; //#TODO: store this in a better place
+// Get the config file from the environment variable WITHINGS_CONFIG_FILE or set it to config.json
+pub fn get_config_file() -> String {
+    let config_file = env::var("WITHINGS_CONFIG_FILE").unwrap_or_else(|_| {
+        "config.json".to_string()
+    });
+    info!("Using config file: {}", config_file);
+    config_file
+}
 
 // This fucntion auths with the Withings API and returns an access token
 // It setups a redirect server to get the auth code from the Withings API
@@ -100,7 +107,9 @@ fn write_config(access_token: &String, refresh_token: &String) {
         refresh_token: refresh_token.to_string()
     };
     
-    let config_file = std::fs::File::create(&CONFIG_F).unwrap_or_else(|e| {
+    let get_file = get_config_file();
+
+    let config_file = std::fs::File::create(get_file).unwrap_or_else(|e| {
         panic!("Couldn't create file: {}", e);
     });
     serde_json::to_writer_pretty(config_file, &config).unwrap_or_else(|e| {
@@ -111,8 +120,18 @@ fn write_config(access_token: &String, refresh_token: &String) {
 
 // Load the config file from JSON and return a Config struct
 fn load_config() -> models::Config {
-    let config_file = std::fs::File::open(&CONFIG_F).unwrap();
-    let config = serde_json::from_reader(config_file).unwrap();
+    let get_file = get_config_file();
+
+    let config_file = std::fs::File::open(get_file).unwrap_or_else(|e| {
+        warn!("Couldn't open file: {}", e);
+        panic!("Couldn't open file: {}", e);
+    });
+
+    let config = serde_json::from_reader(config_file).unwrap_or_else(|e| {
+        warn!("Couldn't read file: {}", e);
+        panic!("Couldn't read file: {}", e);
+    });
+
     trace!("Loaded config: {:?}", config);
     config
 }

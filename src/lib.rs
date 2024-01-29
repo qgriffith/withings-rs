@@ -8,20 +8,22 @@
 //! Withings also does not return the same value type for userid so we ignore that field.
 //! In order to use this library you will need to register your application with Withings.
 //! Then store the client_id and client_secret as an environment variables.
+//! To store the config file outside of the default of config.json, set the environment variable WITHINGS_CONFIG_FILE.
 //! 
 //! # Examples
 //! 
 //!  ```no_run
-//! use withings_rs::api::{auth, measure};
+//! use withings_rs::{api::{auth, measure}, models::meas::CategoryType};
 //! use std::env;
 //! !use simple_logger::SimpleLogger;
 //! !use std::path::Path;
 //! use withings_rs::models::MeasureType;
+//! 
 //! fn main () {
 //!    println!("testing withings-rs\n");
 //!    SimpleLogger::new().init().unwrap();
 //!    let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
-//!    let config_file = "config.json".to_string();
+//!    let config_file = auth::get_config_file();
 //!    let access_token = get_access_token(config_file);
 //!    let weight = MeasureType::Weight.to_string();
 //!    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, "1", &weight, None, None, None, Some("1706108118")).unwrap();
