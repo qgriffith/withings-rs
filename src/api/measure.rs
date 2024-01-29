@@ -38,7 +38,7 @@ pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, cat
         params.insert("lastupdate", &lastupdate.unwrap());
     }
 
-    trace!("API parameters: {:?}", params);
+    trace!("Measure API parameters: {:?}", params);
 
     let client = reqwest::blocking::Client::new();
     let url = api::wapi_url("measure".to_string());
@@ -52,7 +52,7 @@ pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, cat
         return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "API returned an error")));
     }
 
-    info!("API response: {:?}", response);
+    info!("Measure API response: {:?}", response);
     
     let measurements = response.json::<models::ResponseMeas>()?;
     Ok(measurements)

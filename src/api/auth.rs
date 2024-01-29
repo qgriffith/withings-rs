@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use random_string::generate;
-use crate::models;
+use crate::{models, api};
 use crate::redirect;
 use log::{info, trace, warn};
 
@@ -13,12 +13,12 @@ use log::{info, trace, warn};
 
 // Setup the config file name and the token URL
 static CONFIG_F: &str = "config.json"; //#TODO: store this in a better place
-static TOKEN_URL: &str = "https://wbsapi.withings.net/v2/oauth2";
 
 // This fucntion auths with the Withings API and returns an access token
+// It setups a redirect server to get the auth code from the Withings API
 // It takes two arguments: client_id and client_secret which are provided by Withings
 // It returns an access token which is used to make requests to the Withings API
-pub fn get_access_code(client_id: String, client_secret: String) -> String {
+pub fn get_access_code(client_id: String, client_secret: String) -> Result<String, Box<dyn std::error::Error>> {
 
     
     // Setup URLS for Withings API Auth, Token, and Redirect
@@ -33,7 +33,7 @@ pub fn get_access_code(client_id: String, client_secret: String) -> String {
     let state =  generate(12, charset);
     
     // Setup Withings API Action and Authorization Code required by their API for auth
-    let authorization_code = "authorization_code".to_string();
+    let grant_type = "authorization_code".to_string();
     let action = "requesttoken".to_string();
 
     // Build the auth URL
@@ -49,33 +49,47 @@ pub fn get_access_code(client_id: String, client_secret: String) -> String {
 
     // Check the CSRF token
     if get_code["state"] != state {
-        warn!("CSRF token mismatch :(");
-        panic!("CSRF token mismatch :(");
+        warn!("CSRF token mismatch!");
+        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "CSRF token mismatch!")));
     }
     
     // Build the params for the token request
     let mut params = HashMap::new();
     params.insert("client_id", &client_id);
     params.insert("client_secret", &client_secret);
-    params.insert("grant_type", &authorization_code );
+    params.insert("grant_type", &grant_type  );
     params.insert("redirect_uri", &redirect_url);
     params.insert("code", &auth_code);
     params.insert("action", &action);
 
     // Make the token request
+    let token_url = api::wapi_url("v2/oauth2/".to_string());
     let client = reqwest::blocking::Client::new();
-    let response = client.post(TOKEN_URL)
+    let response = client.post(&token_url)
     .form(&params)
     .send();
+    
+    trace!("Auth API parameters: {:?}", params);
+
+    // Check for errors from the API
+    if response.is_err() {
+        warn!("Auth API response: {:?}", response);
+        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "API returned an error")));
+    }
+
+    info!("Response: {:?}", response);
    
     // Get the access token from the response
-    let response_struct = response.unwrap().json::<models::Response>().unwrap();
+    let response_struct = response.unwrap().json::<models::Response>().unwrap_or_else(|e| {
+        panic!("Error: {}", e);
+    });
+
     let access_token = response_struct.body.access_token;
     let refresh_token = response_struct.body.refresh_token;
     info!("Got Access Token: {}", access_token);
     
     write_config(&access_token, &refresh_token);
-    access_token
+    Ok(access_token)
   
 }
 
@@ -86,10 +100,13 @@ fn write_config(access_token: &String, refresh_token: &String) {
         refresh_token: refresh_token.to_string()
     };
     
-    let config_file = std::fs::File::create(&CONFIG_F).unwrap();
-    serde_json::to_writer_pretty(config_file, &config).unwrap();
+    let config_file = std::fs::File::create(&CONFIG_F).unwrap_or_else(|e| {
+        panic!("Couldn't create file: {}", e);
+    });
+    serde_json::to_writer_pretty(config_file, &config).unwrap_or_else(|e| {
+        panic!("Couldn't write to file: {}", e);
+    });
     load_config();
-
 }
 
 // Load the config file from JSON and return a Config struct
@@ -101,7 +118,7 @@ fn load_config() -> models::Config {
 }
 
 // Refresh the access token using withings refresh token loaded from the config file
-pub fn refresh_token(client_id: String, client_secret: String) -> String {
+pub fn refresh_token(client_id: String, client_secret: String) -> Result<String, Box<dyn std::error::Error>> {
     let config = load_config();
     let grant_type = "refresh_token".to_string();
     let refresh_token = config.refresh_token;
@@ -114,20 +131,29 @@ pub fn refresh_token(client_id: String, client_secret: String) -> String {
     params.insert("refresh_token", &refresh_token);
     params.insert("action", &action);
 
+    trace!("Refresh Token API parameters: {:?}", params);
+
     // Make the refresh token request
+    let token_url = api::wapi_url("v2/oauth2/".to_string());
     let client = reqwest::blocking::Client::new();
-    let response = client.post(TOKEN_URL)
+    let response = client.post(token_url)
     .form(&params)
     .send();
 
-    info!("Refresing Token");
+    if response.is_err() {
+        warn!("Refresh API response: {:?}", response);
+        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "API returned an error")));
+    }
+    info!("Refresh Response: {:?}", response);
    
     // Get the access token from the response
-     let response_struct = response.unwrap().json::<models::Response>().unwrap();
+     let response_struct = response.unwrap().json::<models::Response>().unwrap_or_else(|e| {
+         panic!("Error: {}", e);
+     });
      let access_token = response_struct.body.access_token;
      let refresh_token = response_struct.body.refresh_token;
      info!("Got Access Token: {}", access_token);
     
      write_config(&access_token, &refresh_token);
-     access_token
+     Ok(access_token)
 }

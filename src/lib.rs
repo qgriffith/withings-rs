@@ -3,6 +3,7 @@
 //! # Description
 //! 
 //! This library will authenticate with the Withings API Ouath2 client credentials flow.
+//! Store the access token in a file and refresh the token when it expires.
 //! Withings does not follow the Oauth2 spec exactly, so the library will handle the differences.
 //! Withings also does not return the same value type for userid so we ignore that field.
 //! In order to use this library you will need to register your application with Withings.
@@ -40,6 +41,11 @@
 //!    }
 //! }
 //! ```
+//!
+//! # Disclaimer
+//! 
+//! This library is not affiliated with Withings. Use at your own risk. 
+//! This library currently only pulls in user measurements.
 
 pub mod api;
 pub mod models;
