@@ -46,6 +46,7 @@ pub struct Measure {
     fm: i64,
 }
 
+// CategoryType enum for the category field in the measure struct matches the values in the Withings API docs
 pub enum CategoryType {
     Measures = 1, // User Measuers
     UserObjections = 2, // User Objectives    
