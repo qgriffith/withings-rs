@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::models;
+use crate::{models, api};
 use log::{info, trace, warn};
 
 pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, category: &str, 
@@ -29,7 +29,8 @@ pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, cat
     }
 
     let client = reqwest::blocking::Client::new();
-    let response = client.get("https://wbsapi.withings.net/measure")
+    let url = api::wapi_url("measure".to_string());
+    let response = client.get(&url)
     .query(&params)
     .send()?;
 
