@@ -72,7 +72,7 @@ pub fn get_access_code(client_id: String, client_secret: String) -> Result<Strin
     // Make the token request
     let token_url = api::wapi_url("v2/oauth2/".to_string());
     let client = reqwest::blocking::Client::new();
-    let response = client.post(&token_url)
+    let response = client.post(token_url)
     .form(&params)
     .send();
     

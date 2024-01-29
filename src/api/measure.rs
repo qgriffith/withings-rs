@@ -29,20 +29,20 @@ pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, cat
         params.insert("startdate", start.unwrap());
     }
     if end.is_some() {
-        params.insert("enddate", &end.unwrap());
+        params.insert("enddate", end.unwrap());
     }
     if offset.is_some() {
-        params.insert("offset", &offset.unwrap());
+        params.insert("offset", offset.unwrap());
     }
     if lastupdate.is_some() {
-        params.insert("lastupdate", &lastupdate.unwrap());
+        params.insert("lastupdate", lastupdate.unwrap());
     }
 
     trace!("Measure API parameters: {:?}", params);
 
     let client = reqwest::blocking::Client::new();
     let url = api::wapi_url("measure".to_string());
-    let response = client.get(&url)
+    let response = client.get(url)
     .query(&params)
     .send()?;
     
