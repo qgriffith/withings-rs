@@ -46,6 +46,20 @@ pub struct Measure {
     fm: i64,
 }
 
+pub enum CategoryType {
+    Measures = 1, // User Measuers
+    UserObjections = 2, // User Objectives    
+}
+// Implement Display for CategoryType enum so to_string() can be used to convert to the string value expected by the API
+impl fmt::Display for CategoryType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CategoryType::Measures => write!(f, "1"),
+            CategoryType::UserObjections => write!(f, "2"),
+        }
+    }
+}
+
 // MeasureType enum for the measure type field in the measure struct matches the values in the Withings API docs
 pub enum MeasureType {
     Weight = 1, // Weight (kg)
