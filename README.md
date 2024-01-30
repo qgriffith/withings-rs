@@ -18,22 +18,36 @@ use withings_rs::models::MeasureType;
 
 fn main () {
     println!("testing withings-rs\n");
+
+    // Initialize the logger to see the output
     SimpleLogger::new().init().unwrap();
 
-
+    // Get the client id from the environment variable
     let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
+
+    // Get the config file if it exists or create a new one
     let config_file = auth::get_config_file();
+
+    // Get the access token from the config file or get a new one
     let access_token = get_access_token(config_file);
+
+    // Get the CategoryType and MeasureType
     let category = CategoryType::Measures.to_string();
     let weight = MeasureType::Weight.to_string();
-    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, &category, &weight, None, None, None, Some("1706108118")).unwrap();
+    
+    // Get the measurements
+    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, 
+    &category, &weight, None, None, None, Some("1706108118")).unwrap();
+    
     println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
 }
 
+// Get the access token from the config file or get a new one
 fn get_access_token(config_file: String) -> Result<String, String>{
     let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
     let client_secret = env::var("WITHINGS_CLIENT_SECRET").unwrap();
     
+    // Check if the config file exists and get the access token or get a new one
     if Path::new(&config_file).exists() {
         let access_token = auth::refresh_token(client_id, client_secret);
         Ok(access_token.unwrap().to_string())
@@ -42,6 +56,7 @@ fn get_access_token(config_file: String) -> Result<String, String>{
         Ok(access_token.unwrap().to_string())
     }
 }
+
 ```
 
 ## Disclaimer
