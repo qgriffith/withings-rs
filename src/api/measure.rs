@@ -11,6 +11,7 @@ use log::{info, trace, warn};
 // Returns a Result of ResponseMeas
 // TODO: So many arguments there has to be a cleaner way to do this
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, category: &str, 
     start: Option<&str>, 
     end: Option<&str>,
@@ -25,17 +26,17 @@ pub fn get_measurements(access_token: &str, client_id: &str, meastype: &str, cat
     params.insert("access_token", access_token);
     params.insert("meastype", meastype);
     params.insert("category", category);
-    if start.is_some() {
-        params.insert("startdate", start.unwrap());
+    if let Some(start) = start {
+        params.insert("startdate", start);
     }
-    if end.is_some() {
-        params.insert("enddate", end.unwrap());
+    if let Some(end) = end {
+        params.insert("enddate", end);
     }
-    if offset.is_some() {
-        params.insert("offset", offset.unwrap());
+    if let Some(offset) = offset {
+        params.insert("offset", offset);
     }
-    if lastupdate.is_some() {
-        params.insert("lastupdate", lastupdate.unwrap());
+    if let Some(lastupdate) = lastupdate {
+        params.insert("lastupdate", lastupdate);
     }
 
     trace!("Measure API parameters: {:?}", params);
