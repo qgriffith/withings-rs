@@ -2,7 +2,7 @@
 name = "withings-rs"
 version = "0.1.0"
 edition = "2021"
-author = "Quenten Griffith"
+author = "Quenten Griffith <qgriffith@gmail.com>"
 description = "Withings API Client lib"
 license = "MIT"
 keywords = ["withings", "client", "api"]
