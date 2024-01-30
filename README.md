@@ -60,4 +60,5 @@ fn get_access_token(config_file: String) -> Result<String, String>{
 ```
 
 ## Disclaimer
+This library is not affiliated with Withings. Use at your own risk. 
 This is very much a work in progress. Right now all it does is auth and pull the measure API.
