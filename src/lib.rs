@@ -44,6 +44,12 @@
 //! }
 //! ```
 //!
+//! # Extra
+//! 
+//! There is an auth redirect server included in the redirect module. It will listen for the redirect on port 8888 
+//! from the Withings API and return the code and state. It does not have to be used, but it is included in the library.
+//! A user could use their own server to listen for the redirect. It needs to return a HashMap with the code and state.
+//! 
 //! # Disclaimer
 //! 
 //! This library is not affiliated with Withings. Use at your own risk. 
