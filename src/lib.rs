@@ -1,27 +1,28 @@
+//! # withings-rs
 //! A library for interfacing with the Withings API.
-//! 
+//!
 //! # Description
-//! 
+//!
 //! This library will authenticate with the Withings API Ouath2 client credentials flow.
 //! Store the access token in a file and refresh the token when it expires.
 //! Withings does not follow the Oauth2 spec exactly, so the library will handle the differences.
-//! Withings also does not return the same value type for userid so we ignore that field.
+//! Withings also does not return the same value type for userid, so we ignore that field.
 //! In order to use this library you will need to register your application with Withings.
 //! Then store the client_id and client_secret as an environment variables.
-//! To store the config file outside of the default of config.json, set the environment variable WITHINGS_CONFIG_FILE.
-//! 
+//! To store the config file outside the default of config.json, set the environment variable WITHINGS_CONFIG_FILE.
+//!
 //! # Examples
-//! 
+//!
 //!  ```no_run
 //! use withings_rs::{api::{auth, measure}, models::meas::CategoryType};
 //! use std::env;
-//! !use simple_logger::SimpleLogger;
-//! !use std::path::Path;
+//! use simple_logger::SimpleLogger;
+//! use std::path::Path;
 //! use withings_rs::models::MeasureType;
-//! 
+//!
 //! fn main () {
 //!    println!("testing withings-rs\n");
-//! 
+//!
 //!    // Initialize the logger to see the output
 //!    SimpleLogger::new().init().unwrap();
 //!   
@@ -42,7 +43,7 @@
 //!    println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
 //! }
 //!
-//! // Get the access token from the config file or get a new one 
+//! // Get the access token from the config file or get a new one
 //! fn get_access_token(config_file: String) -> Result<String, String>{
 //!    let client_id = env::var("WITHINGS_CLIENT_ID").unwrap();
 //!    let client_secret = env::var("WITHINGS_CLIENT_SECRET").unwrap();
@@ -58,15 +59,15 @@
 //! }
 //! ```
 //!
-//! # Extra
-//! 
-//! There is an auth redirect server included in the redirect module. It will listen for the redirect on port 8888 
+//! ## Extra
+//!
+//! There is an auth redirect server included in the redirect module. It will listen for the redirect on port 8888
 //! from the Withings API and return the code and state. It does not have to be used, but it is included in the library.
 //! A user could use their own server to listen for the redirect. It needs to return a HashMap with the code and state.
-//! 
-//! # Disclaimer
-//! 
-//! This library is not affiliated with Withings. Use at your own risk. 
+//!
+//! ## Disclaimer
+//!
+//! This library is not affiliated with Withings. Use at your own risk.
 //! This library currently only pulls in user measurements.
 
 pub mod api;
