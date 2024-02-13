@@ -3,7 +3,7 @@
 
 pub mod auth;
 pub use self::auth::Config;
-pub use self::auth::Response;
+pub use self::auth::OauthResponse;
 pub mod meas;
 pub use self::meas::Body;
 pub use self::meas::Measure;

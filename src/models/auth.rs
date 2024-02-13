@@ -5,16 +5,16 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Response from the API is a JSON object that includes the following fields:
+/// Response from the Oauth API is a JSON object that includes the following fields:
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Response {
-    pub body: Body,
+pub struct OauthResponse {
+    pub body: Auth,
     pub status: i64,
 }
 
-/// The body of the response is a JSON object that includes the following fields:
+/// The JSON fields from the Oauth response flow:
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Body {
+pub struct Auth {
     pub access_token: String,
     pub expires_in: i64,
     pub refresh_token: String,

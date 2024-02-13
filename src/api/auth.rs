@@ -98,7 +98,7 @@ pub fn get_access_code(
     // Get the access token from the response
     let response_struct = response
         .unwrap()
-        .json::<models::Response>()
+        .json::<models::OauthResponse>()
         .unwrap_or_else(|e| {
             panic!("Error: {}", e);
         });
@@ -186,7 +186,7 @@ pub fn refresh_token(
     // Get the access token from the response
     let response_struct = response
         .unwrap()
-        .json::<models::Response>()
+        .json::<models::OauthResponse>()
         .unwrap_or_else(|e| {
             panic!("Error: {}", e);
         });
