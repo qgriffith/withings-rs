@@ -22,37 +22,38 @@ pub struct MeasurementParams {
     pub lastupdate: Option<String>,
 }
 
-const ACTION: String = "getmeas".to_string();
+/// Function to prepare the parameters for the API call
+fn prepare_params(params: &MeasurementParams) -> HashMap<&str, String> {
+    let action = "getmeas".to_string();
+    let mut map_params = HashMap::new();
+    map_params.insert("client_id", params.client_id.clone());
+    map_params.insert("action", action);
+    map_params.insert("access_token", params.access_token.clone());
+    map_params.insert("meastype", params.meastype.clone());
+    map_params.insert("category", params.category.clone());
+    if let Some(start) = &params.start {
+        map_params.insert("startdate", start.clone());
+    }
+    if let Some(end) = &params.end {
+        map_params.insert("enddate", end.clone());
+    }
+    if let Some(offset) = &params.offset {
+        map_params.insert("offset", offset.clone());
+    }
+    if let Some(lastupdate) = &params.lastupdate {
+        map_params.insert("lastupdate", lastupdate.clone());
+    }
+    map_params
+}
 
-/// get_measurements
-/// Takes client_id, access_token, meastype, category, startdate, enddate, offset, lastupdate
-/// meastype is the type of measurement to retrieve use enum MeasType
-/// startdate, enddate, offset, lastupdate are optional
-/// startdate, enddate, lastupdate are in the format of epoch time
-/// Returns a Result of ResponseMeas
+/// # get_measurements
+/// Calls the withings measure API
+/// Documentation: https://developer.withings.com/api-reference/#tag/measure
 pub fn get_measurements(
     params: &MeasurementParams,
 ) -> Result<models::meas::ResponseMeas, Box<dyn std::error::Error>> {
-    // Set up the parameters for the API call
-    let mut map_params = HashMap::new();
-    map_params.insert("client_id", &params.client_id);
-    map_params.insert("action", &ACTION);
-    map_params.insert("access_token", &params.access_token);
-    map_params.insert("meastype", &params.meastype);
-    map_params.insert("category", &params.category);
-    if let Some(start) = &params.start {
-        map_params.insert("startdate", start);
-    }
-    if let Some(end) = &params.end {
-        map_params.insert("enddate", end);
-    }
-    if let Some(offset) = &params.offset {
-        map_params.insert("offset", offset);
-    }
-    if let Some(lastupdate) = &params.lastupdate {
-        map_params.insert("lastupdate", lastupdate);
-    }
-
+    // Prepare the parameters for the API call
+    let map_params = prepare_params(params);
     trace!("Measure API parameters: {:?}", map_params);
 
     let client = reqwest::blocking::Client::new();
@@ -69,7 +70,7 @@ pub fn get_measurements(
     }
 
     info!("Measure API response: {:?}", response);
-
     let measurements = response.json::<models::ResponseMeas>()?;
+
     Ok(measurements)
 }
