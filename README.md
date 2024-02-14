@@ -34,11 +34,21 @@ fn main () {
     // Get the CategoryType and MeasureType
     let category = CategoryType::Measures.to_string();
     let weight = MeasureType::Weight.to_string();
-    
+     // set up the measure api arguments 
+    let params = measure::MeasurementParams{
+        access_token: access_token.unwrap().to_string(),
+        client_id,
+        category,
+        meastype: weight,
+        start: None,
+        end: None,
+        offset: None,
+        lastupdate: Some("1706108118".to_string())
+    };
     // Get the measurements
-    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, 
-    &category, &weight, None, None, None, Some("1706108118")).unwrap();
-    
+    let measurements = measure::get_measurements(
+        &params
+    ).unwrap();
     println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
 }
 

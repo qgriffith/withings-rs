@@ -38,10 +38,24 @@
 //!    // Get the CategoryType and MeasureType
 //!    let weight = MeasureType::Weight.to_string();
 //!    
+//!  // Get the CategoryType and MeasureType
+//!    let category = CategoryType::Measures.to_string();
+//!    let weight = MeasureType::Weight.to_string();
+//!    // set up the measure api arguments
+//!    let params = measure::MeasurementParams{
+//!    access_token: access_token.unwrap().to_string(),
+//!    client_id,
+//!    category,
+//!    meastype: weight,
+//!    start: None,
+//!    end: None,
+//!    offset: None,
+//!    lastupdate: Some("1706108118".to_string())
+//!    };
 //!    // Get the measurements
-//!    let measurements = measure::get_measurements(&access_token.unwrap().to_string(), &client_id, "1", &weight, None, None, None, Some("1706108118")).unwrap();
-//!    println!("weight: {:?}", measurements.body.measuregrps[0].measures[0].value);
-//! }
+//!    let measurements = measure::get_measurements(
+//!    &params
+//!    ).unwrap();
 //!
 //! // Get the access token from the config file or get a new one
 //! fn get_access_token(config_file: String) -> Result<String, String>{
