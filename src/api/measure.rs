@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::string::ToString;
 
-/// The measurement API takes a lot of arguments this struct sets those up to make
-/// the call to the function cleaner
+/// Represents the parameters for a measurement request.
 #[derive(Debug)]
 pub struct MeasurementParams {
     pub access_token: String,
@@ -22,7 +21,17 @@ pub struct MeasurementParams {
     pub lastupdate: Option<String>,
 }
 
-/// Function to prepare the parameters for the API call
+/// Prepare parameters for measurement request.
+///
+/// This function takes a `MeasurementParams` struct as input and returns a `HashMap` of the prepared parameters for the request.
+///
+/// # Arguments
+///
+/// * `params` - A reference to a `MeasurementParams` struct.
+///
+/// # Returns
+///
+/// A `HashMap` containing the prepared parameters for the request.
 fn prepare_params(params: &MeasurementParams) -> HashMap<&str, String> {
     let action = "getmeas".to_string();
     let mut map_params = HashMap::new();
@@ -46,9 +55,18 @@ fn prepare_params(params: &MeasurementParams) -> HashMap<&str, String> {
     map_params
 }
 
-/// # get_measurements
-/// Calls the withings measure API
-/// Documentation: https://developer.withings.com/api-reference/#tag/measure
+/// Retrieves measurements from the API based on the provided parameters.
+///
+/// # Arguments
+///
+/// * `params` - The MeasurementParams struct containing the parameters for the API call.
+///
+/// # Returns
+///
+/// * `Result<models::meas::ResponseMeas, Box<dyn std::error::Error>>` - A Result enum containing either the measurements or an error.
+///
+/// # Documentation
+/// https://developer.withings.com/api-reference/#tag/measure
 pub fn get_measurements(
     params: &MeasurementParams,
 ) -> Result<models::meas::ResponseMeas, Box<dyn std::error::Error>> {
