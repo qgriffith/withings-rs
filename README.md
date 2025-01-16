@@ -2,7 +2,8 @@
 Withings API Client in Rust
 
 ## About
-First attempt at a rust project. This will Oauth to the Withings API and pull in your data.
+
+This will Oauth to the Withings API and pull in your data.
 
 ## Use
 You first need to create an Dev account on Withings to get a `client_id` and `client_secret` [Withings Dev Portal](https://developer.withings.com). Set the redirect URL to `http://localhost:8888` this client will bind to that on the machine it is ran on. To store the tokens in a config file that isn't the default of `config.json` set an env var of `WITHINGS_CONFIG_FILE` the directory path needs to exist for the code does not currnetly attempt to create the directory structure
