@@ -32,6 +32,7 @@ const ACTION: &str = "requesttoken";
 /// * `code`: The authorization code obtained from the authentication process (optional).
 ///
 /// * `refresh_token`: The refresh token obtained from a previous authentication (optional).
+#[derive(Default)]
 struct TokenParams {
     client_id: String,
     client_secret: String,
@@ -118,63 +119,24 @@ pub fn get_access_code(
     client_id: String,
     client_secret: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Setup URLS for Withings API Auth, Token, and Redirect
     let auth_url = build_auth_url(&client_id, AUTH_URL, API_SCOPE, REDIRECT_URL)?;
-    let redirect_url = "http://localhost:8888".to_string();
-    let grant_type = "authorization_code".to_string();
-
-    // Print the auth URL and start the redirect server
     println!("Browse to: {}\n", auth_url);
 
     let auth_response = redirect::server::run();
     let auth_code = auth_response["code"].to_string();
     info!("Got Auth Code: {}", auth_code);
 
-    // Check the CSRF token
     check_csrf_token(&auth_response["state"], &auth_url)?;
-
-    let params_struct = TokenParams {
+    let token_params = TokenParams {
         client_id,
         client_secret,
-        grant_type,
-        redirect_uri: Some(redirect_url),
+        grant_type: "authorization_code".to_string(),
+        redirect_uri: Some(REDIRECT_URL.to_string()),
         code: Some(auth_code),
-        refresh_token: None,
+        ..Default::default()
     };
-    let params = prepare_token_params(params_struct);
 
-    // Make the token request
-    let token_url = api::wapi_url("v2/oauth2/".to_string());
-    let client = reqwest::blocking::Client::new();
-    let response = client.post(token_url).form(&params).send();
-
-    trace!("Auth API parameters: {:?}", params);
-
-    // Check for errors from the API
-    if response.is_err() {
-        warn!("Auth API response: {:?}", response);
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "API returned an error",
-        )));
-    }
-
-    info!("Response: {:?}", response);
-
-    // Get the access token from the response
-    let response_struct = response
-        .unwrap()
-        .json::<models::OauthResponse>()
-        .unwrap_or_else(|e| {
-            panic!("Error: {}", e);
-        });
-
-    let access_token = response_struct.body.access_token;
-    let refresh_token = response_struct.body.refresh_token;
-    info!("Got Access Token: {}", access_token);
-
-    write_config(&access_token, &refresh_token);
-    Ok(access_token)
+    request_access_token(token_params)
 }
 
 /// Writes the configuration to a file in JSON format.
@@ -310,4 +272,24 @@ fn check_csrf_token(state: &str, expected_state: &str) -> Result<(), Box<dyn std
         )));
     }
     Ok(())
+}
+
+fn request_access_token(params: TokenParams) -> Result<String, Box<dyn std::error::Error>> {
+    let token_url = api::wapi_url("v2/oauth2/".to_string());
+    let params_map = prepare_token_params(params);
+    trace!("Auth API parameters: {:?}", params_map);
+
+    let response = reqwest::blocking::Client::new()
+        .post(token_url)
+        .form(&params_map)
+        .send()?;
+
+    let response_struct: models::OauthResponse = response.json()?;
+    let access_token = response_struct.body.access_token;
+    let refresh_token = response_struct.body.refresh_token;
+
+    info!("Got Access Token: {}", access_token);
+    write_config(&access_token, &refresh_token);
+
+    Ok(access_token)
 }
