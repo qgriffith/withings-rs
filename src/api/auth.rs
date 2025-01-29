@@ -5,14 +5,17 @@
 //!file for future use. The access token expires after 1 hour and the refresh token expires after
 //! 1 year. The refresh token is used to get a new access token when the current access token expires.
 
-use std::collections::HashMap;
-use std::env;
-
 use log::{info, trace, warn};
 use random_string::generate;
+use std::{collections::HashMap, env};
 
-use crate::redirect;
-use crate::{api, models};
+use crate::{api, models, redirect};
+
+const AUTH_URL: &str = "https://account.withings.com/oauth2_user/authorize2";
+const REDIRECT_URL: &str = "http://localhost:8888";
+const API_SCOPE: &str = "user.info,user.metrics,user.activity";
+const CSRF_CHARSET: &str = "ABCDEfghiJKLnmoQRStuvWxyZ1234567890";
+const ACTION: &str = "requesttoken";
 
 /// This struct represents the parameters required for making token-related API requests.
 ///
@@ -94,7 +97,7 @@ fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, Stri
         params.insert("refresh_token", refresh_token);
     }
 
-    params.insert("action", "requesttoken".to_string());
+    params.insert("action", ACTION.to_string());
     params
 }
 
@@ -116,41 +119,19 @@ pub fn get_access_code(
     client_secret: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
     // Setup URLS for Withings API Auth, Token, and Redirect
-    let auth_url = "https://account.withings.com/oauth2_user/authorize2".to_string();
+    let auth_url = build_auth_url(&client_id, AUTH_URL, API_SCOPE, REDIRECT_URL)?;
     let redirect_url = "http://localhost:8888".to_string();
-
-    // Setup Withings API Scope
-    let scope = "user.info,user.metrics,user.activity".to_string();
-
-    // Generate a random string for CSRF protection
-    let charset = "ABCDEfghiJKLnmoQRStuvWxyZ1234567890";
-    let state = generate(12, charset);
-
-    // Setup Withings API Action and Authorization Code required by their API for auth
     let grant_type = "authorization_code".to_string();
-
-    // Build the auth URL
-    let auth_url = format!(
-        "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}",
-        auth_url, client_id, redirect_url, scope, state
-    );
 
     // Print the auth URL and start the redirect server
     println!("Browse to: {}\n", auth_url);
-    let get_code = redirect::server::run();
 
-    // Get the auth code from the redirect server
-    let auth_code = get_code["code"].to_string();
+    let auth_response = redirect::server::run();
+    let auth_code = auth_response["code"].to_string();
     info!("Got Auth Code: {}", auth_code);
 
     // Check the CSRF token
-    if get_code["state"] != state {
-        warn!("CSRF token mismatch!");
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "CSRF token mismatch!",
-        )));
-    }
+    check_csrf_token(&auth_response["state"], &auth_url)?;
 
     let params_struct = TokenParams {
         client_id,
@@ -305,4 +286,28 @@ pub fn refresh_token(
 
     write_config(&access_token, &refresh_token);
     Ok(access_token)
+}
+
+fn build_auth_url(
+    client_id: &str,
+    auth_url_base: &str,
+    scope: &str,
+    redirect_uri: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let state = generate(12, CSRF_CHARSET);
+    Ok(format!(
+        "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}",
+        auth_url_base, client_id, redirect_uri, scope, state
+    ))
+}
+
+fn check_csrf_token(state: &str, expected_state: &str) -> Result<(), Box<dyn std::error::Error>> {
+    if state != expected_state {
+        warn!("CSRF token mismatch!");
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "CSRF token mismatch!",
+        )));
+    }
+    Ok(())
 }
