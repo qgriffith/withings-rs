@@ -9,7 +9,11 @@ use log::{info, trace, warn};
 use random_string::generate;
 use std::{collections::HashMap, env};
 
-use crate::{api, models, redirect};
+use crate::{
+    api,
+    api::config::{load_config, write_config},
+    models, redirect,
+};
 
 const AUTH_URL: &str = "https://account.withings.com/oauth2_user/authorize2";
 const REDIRECT_URL: &str = "http://localhost:8888";
@@ -42,44 +46,6 @@ struct TokenParams {
     refresh_token: Option<String>,
 }
 
-/// Retrieves the path to the configuration file.
-///
-/// The path to the configuration file is determined by the value of the `WITHINGS_CONFIG_FILE`
-/// environment variable. If the variable is not set, the default file path `config.json` is used.
-///
-/// # Example
-///
-/// ```
-/// use std::env;
-/// use log::info;
-///
-/// pub fn get_config_file() -> String {
-///     let config_file =
-///         env::var("WITHINGS_CONFIG_FILE").unwrap_or_else(|_| "config.json".to_string());
-///     info!("Using config file: {}", config_file);
-///     config_file
-/// }
-/// ```
-///
-/// # Returns
-///
-/// The path to the configuration file as a `String`.
-pub fn get_config_file() -> String {
-    let config_file =
-        env::var("WITHINGS_CONFIG_FILE").unwrap_or_else(|_| "config.json".to_string());
-    info!("Using config file: {}", config_file);
-    config_file
-}
-
-/// Prepare token params for making a request to obtain a token.
-///
-/// # Arguments
-///
-/// * `token_params` - A struct containing the necessary parameters for requesting a token.
-///
-/// # Returns
-///
-/// A hashmap containing the token parameters required for making the request.
 fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, String> {
     let mut params: HashMap<&str, String> = HashMap::new();
     params.insert("client_id", token_params.client_id);
@@ -102,19 +68,6 @@ fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, Stri
     params
 }
 
-/// Retrieves the access code for Withings API.
-///
-/// This function takes in the `client_id` and `client_secret` as arguments and returns the access code as a `String`.
-///
-/// # Arguments
-///
-/// * `client_id` - A `String` representing the client ID provided by Withings.
-/// * `client_secret` - A `String` representing the client secret provided by Withings.
-///
-/// # Returns
-///
-/// * If the access code is retrieved successfully, it returns a `Result` with the access code as a `String`.
-/// * If any error occurs during the retrieval process, it returns a `Result` with a `Box<dyn Error>` representing the error.
 pub fn get_access_code(
     client_id: String,
     client_secret: String,
@@ -139,67 +92,6 @@ pub fn get_access_code(
     request_access_token(token_params)
 }
 
-/// Writes the configuration to a file in JSON format.
-///
-/// # Arguments
-///
-/// * `access_token` - The access token to be written to the configuration file.
-/// * `refresh_token` - The refresh token to be written to the configuration file.
-///
-/// # Panics
-///
-/// This function panics if it encounters any errors during file creation or writing.
-fn write_config(access_token: &String, refresh_token: &String) {
-    let config = models::Config {
-        access_token: access_token.to_string(),
-        refresh_token: refresh_token.to_string(),
-    };
-
-    let get_file = get_config_file();
-
-    let config_file = std::fs::File::create(get_file).unwrap_or_else(|e| {
-        panic!("Couldn't create file: {}", e);
-    });
-    serde_json::to_writer_pretty(config_file, &config).unwrap_or_else(|e| {
-        panic!("Couldn't write to file: {}", e);
-    });
-    load_config();
-}
-
-/// Loads the configuration from a JSON file.
-///
-/// # Panics
-///
-/// This function will panic if the configuration file cannot be opened or read.
-/// It will also panic if there is an error while deserializing the JSON data into
-/// the `Config` struct.
-fn load_config() -> models::Config {
-    let get_file = get_config_file();
-
-    let config_file = std::fs::File::open(get_file).unwrap_or_else(|e| {
-        warn!("Couldn't open file: {}", e);
-        panic!("Couldn't open file: {}", e);
-    });
-
-    let config = serde_json::from_reader(config_file).unwrap_or_else(|e| {
-        warn!("Couldn't read file: {}", e);
-        panic!("Couldn't read file: {}", e);
-    });
-
-    trace!("Loaded config: {:?}", config);
-    config
-}
-
-/// Refreshes the access token using the provided client ID and client secret.
-///
-/// # Arguments
-///
-/// * `client_id` - The client ID.
-/// * `client_secret` - The client secret.
-///
-/// # Returns
-///
-/// * `Result<String, Box<dyn std::error::Error>>` - A `Result` containing either the access token as a `String` on success, or a boxed `std::error::Error
 pub fn refresh_token(
     client_id: String,
     client_secret: String,
