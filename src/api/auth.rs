@@ -5,14 +5,21 @@
 //!file for future use. The access token expires after 1 hour and the refresh token expires after
 //! 1 year. The refresh token is used to get a new access token when the current access token expires.
 
-use std::collections::HashMap;
-use std::env;
-
+use crate::{
+    api,
+    api::config::{load_config, write_config},
+    models, redirect,
+};
 use log::{info, trace, warn};
 use random_string::generate;
+use serde_json::Value;
+use std::collections::HashMap;
 
-use crate::redirect;
-use crate::{api, models};
+const AUTH_URL: &str = "https://account.withings.com/oauth2_user/authorize2";
+const REDIRECT_URL: &str = "http://localhost:8888";
+const API_SCOPE: &str = "user.info,user.metrics,user.activity";
+const CSRF_CHARSET: &str = "ABCDEfghiJKLnmoQRStuvWxyZ1234567890";
+const ACTION: &str = "requesttoken";
 
 /// This struct represents the parameters required for making token-related API requests.
 ///
@@ -29,6 +36,7 @@ use crate::{api, models};
 /// * `code`: The authorization code obtained from the authentication process (optional).
 ///
 /// * `refresh_token`: The refresh token obtained from a previous authentication (optional).
+#[derive(Default)]
 struct TokenParams {
     client_id: String,
     client_secret: String,
@@ -38,230 +46,65 @@ struct TokenParams {
     refresh_token: Option<String>,
 }
 
-/// Retrieves the path to the configuration file.
+/// Retrieves an authorization code from the OAuth2 authorization endpoint.
 ///
-/// The path to the configuration file is determined by the value of the `WITHINGS_CONFIG_FILE`
-/// environment variable. If the variable is not set, the default file path `config.json` is used.
-///
-/// # Example
-///
-/// ```
-/// use std::env;
-/// use log::info;
-///
-/// pub fn get_config_file() -> String {
-///     let config_file =
-///         env::var("WITHINGS_CONFIG_FILE").unwrap_or_else(|_| "config.json".to_string());
-///     info!("Using config file: {}", config_file);
-///     config_file
-/// }
-/// ```
-///
-/// # Returns
-///
-/// The path to the configuration file as a `String`.
-pub fn get_config_file() -> String {
-    let config_file =
-        env::var("WITHINGS_CONFIG_FILE").unwrap_or_else(|_| "config.json".to_string());
-    info!("Using config file: {}", config_file);
-    config_file
-}
-
-/// Prepare token params for making a request to obtain a token.
+/// This function generates an authorization URL, navigates the user to that URL for approval, and
+/// extracts the resulting authorization code once the user completes the process.
 ///
 /// # Arguments
-///
-/// * `token_params` - A struct containing the necessary parameters for requesting a token.
-///
-/// # Returns
-///
-/// A hashmap containing the token parameters required for making the request.
-fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, String> {
-    let mut params: HashMap<&str, String> = HashMap::new();
-    params.insert("client_id", token_params.client_id);
-    params.insert("client_secret", token_params.client_secret);
-    params.insert("grant_type", token_params.grant_type);
-
-    if let Some(redirect_uri) = token_params.redirect_uri {
-        params.insert("redirect_uri", redirect_uri);
-    }
-
-    if let Some(code) = token_params.code {
-        params.insert("code", code);
-    }
-
-    if let Some(refresh_token) = token_params.refresh_token {
-        params.insert("refresh_token", refresh_token);
-    }
-
-    params.insert("action", "requesttoken".to_string());
-    params
-}
-
-/// Retrieves the access code for Withings API.
-///
-/// This function takes in the `client_id` and `client_secret` as arguments and returns the access code as a `String`.
-///
-/// # Arguments
-///
-/// * `client_id` - A `String` representing the client ID provided by Withings.
-/// * `client_secret` - A `String` representing the client secret provided by Withings.
+/// - `client_id`: The app's client ID.
+/// - `client_secret`: The app's client secret.
 ///
 /// # Returns
+/// Returns the authorization code as a `Result<String, Box<dyn std::error::Error>>` if successful.
 ///
-/// * If the access code is retrieved successfully, it returns a `Result` with the access code as a `String`.
-/// * If any error occurs during the retrieval process, it returns a `Result` with a `Box<dyn Error>` representing the error.
+/// # Errors
+/// - Returns an error if the authorization process fails, or if the CSRF token validation fails.
+///
 pub fn get_access_code(
     client_id: String,
     client_secret: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Setup URLS for Withings API Auth, Token, and Redirect
-    let auth_url = "https://account.withings.com/oauth2_user/authorize2".to_string();
-    let redirect_url = "http://localhost:8888".to_string();
-
-    // Setup Withings API Scope
-    let scope = "user.info,user.metrics,user.activity".to_string();
-
-    // Generate a random string for CSRF protection
-    let charset = "ABCDEfghiJKLnmoQRStuvWxyZ1234567890";
-    let state = generate(12, charset);
-
-    // Setup Withings API Action and Authorization Code required by their API for auth
-    let grant_type = "authorization_code".to_string();
-
-    // Build the auth URL
-    let auth_url = format!(
-        "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}",
-        auth_url, client_id, redirect_url, scope, state
-    );
-
-    // Print the auth URL and start the redirect server
+    let auth_url = build_auth_url(&client_id, AUTH_URL, API_SCOPE, REDIRECT_URL)?;
     println!("Browse to: {}\n", auth_url);
-    let get_code = redirect::server::run();
 
-    // Get the auth code from the redirect server
-    let auth_code = get_code["code"].to_string();
+    let auth_response = redirect::server::run();
+    let auth_code = auth_response["code"].to_string();
     info!("Got Auth Code: {}", auth_code);
 
-    // Check the CSRF token
-    if get_code["state"] != state {
-        warn!("CSRF token mismatch!");
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "CSRF token mismatch!",
-        )));
-    }
-
-    let params_struct = TokenParams {
+    check_csrf_token(&auth_response["state"], &auth_url)?;
+    let token_params = TokenParams {
         client_id,
         client_secret,
-        grant_type,
-        redirect_uri: Some(redirect_url),
+        grant_type: "authorization_code".to_string(),
+        redirect_uri: Some(REDIRECT_URL.to_string()),
         code: Some(auth_code),
-        refresh_token: None,
-    };
-    let params = prepare_token_params(params_struct);
-
-    // Make the token request
-    let token_url = api::wapi_url("v2/oauth2/".to_string());
-    let client = reqwest::blocking::Client::new();
-    let response = client.post(token_url).form(&params).send();
-
-    trace!("Auth API parameters: {:?}", params);
-
-    // Check for errors from the API
-    if response.is_err() {
-        warn!("Auth API response: {:?}", response);
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "API returned an error",
-        )));
-    }
-
-    info!("Response: {:?}", response);
-
-    // Get the access token from the response
-    let response_struct = response
-        .unwrap()
-        .json::<models::OauthResponse>()
-        .unwrap_or_else(|e| {
-            panic!("Error: {}", e);
-        });
-
-    let access_token = response_struct.body.access_token;
-    let refresh_token = response_struct.body.refresh_token;
-    info!("Got Access Token: {}", access_token);
-
-    write_config(&access_token, &refresh_token);
-    Ok(access_token)
-}
-
-/// Writes the configuration to a file in JSON format.
-///
-/// # Arguments
-///
-/// * `access_token` - The access token to be written to the configuration file.
-/// * `refresh_token` - The refresh token to be written to the configuration file.
-///
-/// # Panics
-///
-/// This function panics if it encounters any errors during file creation or writing.
-fn write_config(access_token: &String, refresh_token: &String) {
-    let config = models::Config {
-        access_token: access_token.to_string(),
-        refresh_token: refresh_token.to_string(),
+        ..Default::default()
     };
 
-    let get_file = get_config_file();
-
-    let config_file = std::fs::File::create(get_file).unwrap_or_else(|e| {
-        panic!("Couldn't create file: {}", e);
-    });
-    serde_json::to_writer_pretty(config_file, &config).unwrap_or_else(|e| {
-        panic!("Couldn't write to file: {}", e);
-    });
-    load_config();
+    request_access_token(token_params)
 }
 
-/// Loads the configuration from a JSON file.
+/// Refreshes an expired access token using the refresh token.
 ///
-/// # Panics
-///
-/// This function will panic if the configuration file cannot be opened or read.
-/// It will also panic if there is an error while deserializing the JSON data into
-/// the `Config` struct.
-fn load_config() -> models::Config {
-    let get_file = get_config_file();
-
-    let config_file = std::fs::File::open(get_file).unwrap_or_else(|e| {
-        warn!("Couldn't open file: {}", e);
-        panic!("Couldn't open file: {}", e);
-    });
-
-    let config = serde_json::from_reader(config_file).unwrap_or_else(|e| {
-        warn!("Couldn't read file: {}", e);
-        panic!("Couldn't read file: {}", e);
-    });
-
-    trace!("Loaded config: {:?}", config);
-    config
-}
-
-/// Refreshes the access token using the provided client ID and client secret.
+/// This function retrieves the refresh token stored in the configuration file, sends it to the
+/// API, and receives a new access token.
 ///
 /// # Arguments
-///
-/// * `client_id` - The client ID.
-/// * `client_secret` - The client secret.
+/// - `client_id`: The app's client ID.
+/// - `client_secret`: The app's client secret.
 ///
 /// # Returns
+/// Returns the new access token as a `Result<String, Box<dyn std::error::Error>>` if successful.
 ///
-/// * `Result<String, Box<dyn std::error::Error>>` - A `Result` containing either the access token as a `String` on success, or a boxed `std::error::Error
+/// # Errors
+/// - Returns an error if the API request fails or if parsing the response fails.
+///
 pub fn refresh_token(
     client_id: String,
     client_secret: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let config = load_config();
+    let config = load_config()?;
     let grant_type = "refresh_token".to_string();
     let refresh_token = config.refresh_token;
 
@@ -281,28 +124,141 @@ pub fn refresh_token(
     // Make the refresh token request
     let token_url = api::wapi_url("v2/oauth2/".to_string());
     let client = reqwest::blocking::Client::new();
-    let response = client.post(token_url).form(&params).send();
+    let response = client.post(token_url).form(&params).send()?;
 
-    if response.is_err() {
+    if response.status() != 200 {
         warn!("Refresh API response: {:?}", response);
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
             "API returned an error",
         )));
     }
-    info!("Refresh Response: {:?}", response);
+
+    // Attempt to retrieve and deserialize the response
+    let response_text = response.text()?;
+    info!("Full Response Text: {}", response_text);
 
     // Get the access token from the response
-    let response_struct = response
-        .unwrap()
-        .json::<models::OauthResponse>()
-        .unwrap_or_else(|e| {
-            panic!("Error: {}", e);
-        });
+    let response_struct: models::OauthResponse =
+        serde_json::from_str(&response_text).map_err(|e| {
+            format!(
+                "Failed to deserialize response: {}\nResponse text: {}",
+                e, response_text
+            )
+        })?;
+
     let access_token = response_struct.body.access_token;
     let refresh_token = response_struct.body.refresh_token;
     info!("Got Access Token: {}", access_token);
 
     write_config(&access_token, &refresh_token);
+    Ok(access_token)
+}
+
+/// Prepares query parameters for API requests involving tokens.
+///
+/// # Arguments
+/// - `token_params`: A `TokenParams` struct containing the required fields for the API request.
+///
+/// # Returns
+/// A `HashMap` containing the parameters formatted as key-value pairs.
+///
+fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, String> {
+    let mut params: HashMap<&str, String> = HashMap::new();
+    params.insert("client_id", token_params.client_id);
+    params.insert("client_secret", token_params.client_secret);
+    params.insert("grant_type", token_params.grant_type);
+
+    if let Some(redirect_uri) = token_params.redirect_uri {
+        params.insert("redirect_uri", redirect_uri);
+    }
+
+    if let Some(code) = token_params.code {
+        params.insert("code", code);
+    }
+
+    if let Some(refresh_token) = token_params.refresh_token {
+        params.insert("refresh_token", refresh_token);
+    }
+
+    params.insert("action", ACTION.to_string());
+    params
+}
+
+/// Builds the authorization URL for initiating the OAuth2 flow.
+///
+/// # Arguments
+/// - `client_id`: The app's client ID.
+/// - `auth_url_base`: Base URL for OAuth2 authorization.
+/// - `scope`: Scope of permissions requested (comma-separated values).
+/// - `redirect_uri`: Redirect URI for the OAuth2 flow.
+///
+/// # Returns
+/// A `Result<String, Box<dyn std::error::Error>>` containing the formatted URL.
+///
+fn build_auth_url(
+    client_id: &str,
+    auth_url_base: &str,
+    scope: &str,
+    redirect_uri: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let state = generate(12, CSRF_CHARSET);
+    Ok(format!(
+        "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={}",
+        auth_url_base, client_id, redirect_uri, scope, state
+    ))
+}
+
+/// Validates the CSRF token from the authorization response.
+///
+/// # Arguments
+/// - `state`: The state returned by the authorization response.
+/// - `expected_state`: The expected state string used during the request.
+///
+/// # Returns
+/// Returns `Ok(())` if the validation succeeds, or an error if it fails.
+///
+/// # Errors
+/// - Returns an error if the state parameter does not match.
+///
+fn check_csrf_token(state: &str, expected_state: &str) -> Result<(), Box<dyn std::error::Error>> {
+    if state != expected_state {
+        warn!("CSRF token mismatch!");
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "CSRF token mismatch!",
+        )));
+    }
+    Ok(())
+}
+
+/// Requests an access token using the provided token parameters.
+///
+/// # Arguments
+/// - `params`: A `TokenParams` struct containing the required fields for the token request.
+///
+/// # Returns
+/// A `Result<String, Box<dyn std::error::Error>>` containing the access token.
+///
+/// # Errors
+/// - Returns an error if the API request or response parsing fails.
+///
+fn request_access_token(params: TokenParams) -> Result<String, Box<dyn std::error::Error>> {
+    let token_url = api::wapi_url("v2/oauth2/".to_string());
+    let params_map = prepare_token_params(params);
+    trace!("Auth API parameters: {:?}", params_map);
+
+    let response = reqwest::blocking::Client::new()
+        .post(token_url)
+        .form(&params_map)
+        .send()?;
+
+    let response_struct: models::OauthResponse = response.json()?;
+    let access_token = response_struct.body.access_token;
+    let refresh_token = response_struct.body.refresh_token;
+
+    info!("Got Access Token: {}", access_token);
+    write_config(&access_token, &refresh_token);
+
     Ok(access_token)
 }

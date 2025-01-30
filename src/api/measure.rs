@@ -1,11 +1,11 @@
 //! # measure.rs
-//! Calls the withings API to get the list of measurements
+//! Calls the Withings API to get the list of measurements
 //! https://developer.withings.com/oauth2/#operation/measure-getmeas
 
 use crate::{api, models};
 use log::{info, trace, warn};
 use std::collections::HashMap;
-use std::string::ToString;
+use std::{error::Error, io};
 
 /// Represents the parameters for a measurement request.
 #[derive(Debug)]
@@ -20,74 +20,75 @@ pub struct MeasurementParams {
     pub lastupdate: Option<String>,
 }
 
-/// Prepare parameters for measurement request.
-///
-/// This function takes a `MeasurementParams` struct as input and returns a `HashMap` of the prepared parameters for the request.
-///
-/// # Arguments
-///
-/// * `params` - A reference to a `MeasurementParams` struct.
-///
-/// # Returns
-///
-/// A `HashMap` containing the prepared parameters for the request.
-fn prepare_params(params: &MeasurementParams) -> HashMap<&str, String> {
-    let action = "getmeas".to_string();
-    let mut map_params = HashMap::new();
-    map_params.insert("client_id", params.client_id.clone());
-    map_params.insert("action", action);
-    map_params.insert("access_token", params.access_token.clone());
-    map_params.insert("meastype", params.meastype.clone());
-    map_params.insert("category", params.category.clone());
-    if let Some(start) = &params.start {
-        map_params.insert("startdate", start.clone());
+impl MeasurementParams {
+    /// Converts the `MeasurementParams` struct into a `HashMap` of request parameters.
+    pub fn to_query_params(&self) -> HashMap<&str, String> {
+        let mut params = HashMap::new();
+
+        params.insert("client_id", self.client_id.clone());
+        params.insert("action", "getmeas".to_string());
+        params.insert("access_token", self.access_token.clone());
+        params.insert("meastype", self.meastype.clone());
+        params.insert("category", self.category.clone());
+
+        // Add optional parameters if provided.
+        if let Some(start) = &self.start {
+            params.insert("startdate", start.clone());
+        }
+        if let Some(end) = &self.end {
+            params.insert("enddate", end.clone());
+        }
+        if let Some(offset) = &self.offset {
+            params.insert("offset", offset.clone());
+        }
+        if let Some(lastupdate) = &self.lastupdate {
+            params.insert("lastupdate", lastupdate.clone());
+        }
+
+        params
     }
-    if let Some(end) = &params.end {
-        map_params.insert("enddate", end.clone());
-    }
-    if let Some(offset) = &params.offset {
-        map_params.insert("offset", offset.clone());
-    }
-    if let Some(lastupdate) = &params.lastupdate {
-        map_params.insert("lastupdate", lastupdate.clone());
-    }
-    map_params
 }
 
-/// Retrieves measurements from the API based on the provided parameters.
+/// Retrieves measurements from the Withings API based on the provided parameters.
 ///
 /// # Arguments
 ///
-/// * `params` - The MeasurementParams struct containing the parameters for the API call.
+/// * `params` - The `MeasurementParams` struct containing the parameters for the API call.
 ///
 /// # Returns
 ///
-/// * `Result<models::meas::ResponseMeas, Box<dyn std::error::Error>>` - A Result enum containing either the measurements or an error.
+/// Returns a `Result` with either `models::meas::ResponseMeas` or an error.
 ///
 /// # Documentation
 /// https://developer.withings.com/api-reference/#tag/measure
 pub fn get_measurements(
     params: &MeasurementParams,
-) -> Result<models::meas::ResponseMeas, Box<dyn std::error::Error>> {
-    // Prepare the parameters for the API call
-    let map_params = prepare_params(params);
-    trace!("Measure API parameters: {:?}", map_params);
+) -> Result<models::meas::ResponseMeas, Box<dyn Error>> {
+    // Step 1: Prepare the parameters for the API call
+    let query_params = params.to_query_params();
+    trace!("Measure API query parameters: {:?}", query_params);
 
+    // Step 2: Prepare the API call
     let client = reqwest::blocking::Client::new();
     let url = api::wapi_url("measure".to_string());
-    let response = client.get(url).query(&map_params).send()?;
 
-    // Check for errors from the API
-    if response.status().is_client_error() {
-        warn!("API response: {:?}", response);
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "API returned an error",
+    // Step 3: Make the API request
+    let response = client.get(&url).query(&query_params).send()?;
+
+    // Step 4: Handle response errors
+    if response.status().is_client_error() || response.status().is_server_error() {
+        warn!("Error response from the API: {:?}", response);
+        return Err(Box::new(io::Error::new(
+            io::ErrorKind::Other,
+            format!("API returned an error: {}", response.status()),
         )));
     }
 
-    info!("Measure API response: {:?}", response);
-    let measurements = response.json::<models::ResponseMeas>()?;
-
-    Ok(measurements)
+    // Step 5: Parse the JSON response
+    info!("Successful response from Measure API: {:?}", response);
+    response.json::<models::meas::ResponseMeas>().map_err(|e| {
+        // Convert serde JSON parsing errors into a compatible error
+        warn!("Failed to parse API response: {:?}", e);
+        Box::new(e) as Box<dyn Error>
+    })
 }

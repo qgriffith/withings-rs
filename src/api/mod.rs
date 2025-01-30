@@ -2,6 +2,7 @@
 //! Calls the withings API end points
 //! Documentation: https://developer.withings.com/api-reference
 pub mod auth;
+pub mod config;
 pub mod measure;
 
 /// wapi_url

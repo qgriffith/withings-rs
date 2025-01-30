@@ -1,6 +1,6 @@
 [package]
 name = "withings-rs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 author = "Quenten Griffith <qgriffith@gmail.com>"
 description = "Withings API Client lib"
@@ -10,13 +10,11 @@ readme = "README.md"
 repository = "https://github.com/qgriffith/withings-rs"
 homepage = "https://github.com/qgriffith/withings-rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-reqwest = { version = "0.11", features = ["json", "blocking"] }
-serde = { version = "1.0.195", features = ["derive"]}
+reqwest = { version = "0.12.12", features = ["json", "blocking"] }
+serde = { version = "1.0.217", features = ["derive"] }
 tiny_http = "0.12.0"
-url = "2.2.2"
 random-string = "1.1.0"
-log = "0.4.20"
-serde_json = "1.0.111"
+log = "0.4.25"
+serde_json = "1.0.135"
+url = "2.5.4"
