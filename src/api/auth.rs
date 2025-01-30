@@ -5,15 +5,15 @@
 //!file for future use. The access token expires after 1 hour and the refresh token expires after
 //! 1 year. The refresh token is used to get a new access token when the current access token expires.
 
-use log::{info, trace, warn};
-use random_string::generate;
-use std::collections::HashMap;
-
 use crate::{
     api,
     api::config::{load_config, write_config},
     models, redirect,
 };
+use log::{info, trace, warn};
+use random_string::generate;
+use serde_json::Value;
+use std::collections::HashMap;
 
 const AUTH_URL: &str = "https://account.withings.com/oauth2_user/authorize2";
 const REDIRECT_URL: &str = "http://localhost:8888";
@@ -124,24 +124,29 @@ pub fn refresh_token(
     // Make the refresh token request
     let token_url = api::wapi_url("v2/oauth2/".to_string());
     let client = reqwest::blocking::Client::new();
-    let response = client.post(token_url).form(&params).send();
+    let response = client.post(token_url).form(&params).send()?;
 
-    if response.is_err() {
+    if response.status() != 200 {
         warn!("Refresh API response: {:?}", response);
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
             "API returned an error",
         )));
     }
-    info!("Refresh Response: {:?}", response);
+
+    // Attempt to retrieve and deserialize the response
+    let response_text = response.text()?;
+    info!("Full Response Text: {}", response_text);
 
     // Get the access token from the response
-    let response_struct = response
-        .unwrap()
-        .json::<models::OauthResponse>()
-        .unwrap_or_else(|e| {
-            panic!("Error: {}", e);
-        });
+    let response_struct: models::OauthResponse =
+        serde_json::from_str(&response_text).map_err(|e| {
+            format!(
+                "Failed to deserialize response: {}\nResponse text: {}",
+                e, response_text
+            )
+        })?;
+
     let access_token = response_struct.body.access_token;
     let refresh_token = response_struct.body.refresh_token;
     info!("Got Access Token: {}", access_token);
