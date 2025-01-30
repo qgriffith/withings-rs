@@ -96,7 +96,7 @@ pub fn refresh_token(
     client_id: String,
     client_secret: String,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let config = load_config();
+    let config = load_config()?;
     let grant_type = "refresh_token".to_string();
     let refresh_token = config.refresh_token;
 

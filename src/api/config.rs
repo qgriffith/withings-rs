@@ -26,19 +26,17 @@ fn read_from_file<T: serde::de::DeserializeOwned>(
 }
 
 // Usage in `write_config`
-pub fn write_config(access_token: &String, refresh_token: &String) {
+pub fn write_config(
+    access_token: &String,
+    refresh_token: &String,
+) -> Result<(), Box<dyn std::error::Error>> {
     let config = models::Config {
         access_token: access_token.clone(),
         refresh_token: refresh_token.clone(),
     };
-    if let Err(e) = save_to_file(&get_config_file(), &config) {
-        panic!("Failed to write config file: {}", e);
-    }
+    save_to_file(&get_config_file(), &config)
 }
 
-// Usage in `load_config`
-pub fn load_config() -> models::Config {
-    read_from_file(&get_config_file()).unwrap_or_else(|e| {
-        panic!("Failed to load config file: {}", e);
-    })
+pub fn load_config() -> Result<models::Config, Box<dyn std::error::Error>> {
+    read_from_file(&get_config_file())
 }
