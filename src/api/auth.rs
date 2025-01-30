@@ -7,7 +7,7 @@
 
 use log::{info, trace, warn};
 use random_string::generate;
-use std::{collections::HashMap, env};
+use std::collections::HashMap;
 
 use crate::{
     api,
@@ -46,28 +46,21 @@ struct TokenParams {
     refresh_token: Option<String>,
 }
 
-fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, String> {
-    let mut params: HashMap<&str, String> = HashMap::new();
-    params.insert("client_id", token_params.client_id);
-    params.insert("client_secret", token_params.client_secret);
-    params.insert("grant_type", token_params.grant_type);
-
-    if let Some(redirect_uri) = token_params.redirect_uri {
-        params.insert("redirect_uri", redirect_uri);
-    }
-
-    if let Some(code) = token_params.code {
-        params.insert("code", code);
-    }
-
-    if let Some(refresh_token) = token_params.refresh_token {
-        params.insert("refresh_token", refresh_token);
-    }
-
-    params.insert("action", ACTION.to_string());
-    params
-}
-
+/// Retrieves an authorization code from the OAuth2 authorization endpoint.
+///
+/// This function generates an authorization URL, navigates the user to that URL for approval, and
+/// extracts the resulting authorization code once the user completes the process.
+///
+/// # Arguments
+/// - `client_id`: The app's client ID.
+/// - `client_secret`: The app's client secret.
+///
+/// # Returns
+/// Returns the authorization code as a `Result<String, Box<dyn std::error::Error>>` if successful.
+///
+/// # Errors
+/// - Returns an error if the authorization process fails, or if the CSRF token validation fails.
+///
 pub fn get_access_code(
     client_id: String,
     client_secret: String,
@@ -92,6 +85,21 @@ pub fn get_access_code(
     request_access_token(token_params)
 }
 
+/// Refreshes an expired access token using the refresh token.
+///
+/// This function retrieves the refresh token stored in the configuration file, sends it to the
+/// API, and receives a new access token.
+///
+/// # Arguments
+/// - `client_id`: The app's client ID.
+/// - `client_secret`: The app's client secret.
+///
+/// # Returns
+/// Returns the new access token as a `Result<String, Box<dyn std::error::Error>>` if successful.
+///
+/// # Errors
+/// - Returns an error if the API request fails or if parsing the response fails.
+///
 pub fn refresh_token(
     client_id: String,
     client_secret: String,
@@ -142,6 +150,47 @@ pub fn refresh_token(
     Ok(access_token)
 }
 
+/// Prepares query parameters for API requests involving tokens.
+///
+/// # Arguments
+/// - `token_params`: A `TokenParams` struct containing the required fields for the API request.
+///
+/// # Returns
+/// A `HashMap` containing the parameters formatted as key-value pairs.
+///
+fn prepare_token_params(token_params: TokenParams) -> HashMap<&'static str, String> {
+    let mut params: HashMap<&str, String> = HashMap::new();
+    params.insert("client_id", token_params.client_id);
+    params.insert("client_secret", token_params.client_secret);
+    params.insert("grant_type", token_params.grant_type);
+
+    if let Some(redirect_uri) = token_params.redirect_uri {
+        params.insert("redirect_uri", redirect_uri);
+    }
+
+    if let Some(code) = token_params.code {
+        params.insert("code", code);
+    }
+
+    if let Some(refresh_token) = token_params.refresh_token {
+        params.insert("refresh_token", refresh_token);
+    }
+
+    params.insert("action", ACTION.to_string());
+    params
+}
+
+/// Builds the authorization URL for initiating the OAuth2 flow.
+///
+/// # Arguments
+/// - `client_id`: The app's client ID.
+/// - `auth_url_base`: Base URL for OAuth2 authorization.
+/// - `scope`: Scope of permissions requested (comma-separated values).
+/// - `redirect_uri`: Redirect URI for the OAuth2 flow.
+///
+/// # Returns
+/// A `Result<String, Box<dyn std::error::Error>>` containing the formatted URL.
+///
 fn build_auth_url(
     client_id: &str,
     auth_url_base: &str,
@@ -155,6 +204,18 @@ fn build_auth_url(
     ))
 }
 
+/// Validates the CSRF token from the authorization response.
+///
+/// # Arguments
+/// - `state`: The state returned by the authorization response.
+/// - `expected_state`: The expected state string used during the request.
+///
+/// # Returns
+/// Returns `Ok(())` if the validation succeeds, or an error if it fails.
+///
+/// # Errors
+/// - Returns an error if the state parameter does not match.
+///
 fn check_csrf_token(state: &str, expected_state: &str) -> Result<(), Box<dyn std::error::Error>> {
     if state != expected_state {
         warn!("CSRF token mismatch!");
@@ -166,6 +227,17 @@ fn check_csrf_token(state: &str, expected_state: &str) -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// Requests an access token using the provided token parameters.
+///
+/// # Arguments
+/// - `params`: A `TokenParams` struct containing the required fields for the token request.
+///
+/// # Returns
+/// A `Result<String, Box<dyn std::error::Error>>` containing the access token.
+///
+/// # Errors
+/// - Returns an error if the API request or response parsing fails.
+///
 fn request_access_token(params: TokenParams) -> Result<String, Box<dyn std::error::Error>> {
     let token_url = api::wapi_url("v2/oauth2/".to_string());
     let params_map = prepare_token_params(params);
