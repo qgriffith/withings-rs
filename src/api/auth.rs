@@ -12,7 +12,6 @@ use crate::{
 };
 use log::{info, trace, warn};
 use random_string::generate;
-use serde_json::Value;
 use std::collections::HashMap;
 
 const AUTH_URL: &str = "https://account.withings.com/oauth2_user/authorize2";
@@ -151,7 +150,7 @@ pub fn refresh_token(
     let refresh_token = response_struct.body.refresh_token;
     info!("Got Access Token: {}", access_token);
 
-    write_config(&access_token, &refresh_token);
+    let _ = write_config(&access_token, &refresh_token);
     Ok(access_token)
 }
 
@@ -258,7 +257,7 @@ fn request_access_token(params: TokenParams) -> Result<String, Box<dyn std::erro
     let refresh_token = response_struct.body.refresh_token;
 
     info!("Got Access Token: {}", access_token);
-    write_config(&access_token, &refresh_token);
+    let _ = write_config(&access_token, &refresh_token);
 
     Ok(access_token)
 }
