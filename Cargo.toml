@@ -1,8 +1,8 @@
 [package]
 name = "withings-rs"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
-author = "Quenten Griffith <qgriffith@gmail.com>"
+authors = ["Quenten Griffith <qgriffith@gmail.com>"]
 description = "Withings API Client lib"
 license = "MIT"
 keywords = ["withings", "client", "api"]
